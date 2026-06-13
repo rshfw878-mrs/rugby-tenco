@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>遠征点呼アプリ</title>
+<style>
+  :root {
+    --green: #1a6b3c;
+    --green-light: #2d9e5f;
+    --green-pale: #e8f5ee;
+    --amber: #e8a020;
+    --amber-pale: #fdf3e0;
+    --red: #c0392b;
+    --red-pale: #fceaea;
+    --bg: #f4f6f4;
+    --card: #ffffff;
+    --text: #1a2a1e;
+    --muted: #6b7c6e;
+    --border: #d4e0d6;
+    --radius: 12px;
+    --font: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: var(--font); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header {
+    background: var(--green); color: white;
+    padding: 14px 16px 12px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+  header p { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+
+  /* Tab bar wrapper — horizontal scroll */
+  .tab-bar-wrap {
+    background: var(--card); border-bottom: 2px solid var(--border);
+    position: sticky; top: 55px; z-index: 99;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .tab-bar-wrap::-webkit-scrollbar { display: none; }
+  .tab-bar {
+    display: flex; min-width: max-content;
+    padding: 0 4px;
+  }
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 10px 8px;
+    text-align: center; font-size: 12px; font-weight: 600;
+    color: var(--muted); cursor: pointer; border: none; background: none;
+    transition: color 0.15s; white-space: nowrap; position: relative;
+  }
+  .tab.active { color: var(--green); border-bottom: 3px solid var(--green); margin-bottom: -2px; }
+  .tab-icon { display: block; font-size: 16px; margin-bottom: 1px; }
+  .tab-del {
+    display: inline-block; margin-left: 4px;
+    font-size: 11px; color: var(--muted); vertical-align: middle;
+    cursor: pointer; line-height: 1;
+    background: var(--border); border-radius: 50%;
+    width: 16px; height: 16px; text-align: center; line-height: 16px;
+  }
+  .tab-del:hover { background: #e8a8a0; color: var(--red); }
+  /* add-tab button */
+  .tab-add {
+    flex-shrink: 0; padding: 10px 12px 8px;
+    font-size: 20px; color: var(--green); cursor: pointer;
+    border: none; background: none; line-height: 1;
+    display: flex; align-items: center;
+  }
+
+  /* Pages */
+  .page { display: none; padding: 14px; max-width: 600px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* Card */
+  .card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .card h2 { font-size: 13px; font-weight: 700; color: var(--green); margin-bottom: 10px; }
+
+  textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+    font-size: 13px; font-family: var(--font); resize: vertical; min-height: 110px;
+    background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--green); }
+  input[type="text"], input[type="date"] {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+    font-size: 14px; font-family: var(--font); background: var(--bg); color: var(--text);
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--green); }
+  label { font-size: 11px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 9px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--green); color: white; }
+  .btn-primary:active { background: #145530; transform: scale(0.97); }
+  .btn-secondary { background: var(--green-pale); color: var(--green); border: 1px solid #b0d9be; }
+  .btn-secondary:active { background: #d0ead8; }
+  .btn-danger { background: var(--red-pale); color: var(--red); border: 1px solid #e8b0a8; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--card); border-radius: 10px; padding: 10px 8px; text-align: center; border: 1px solid var(--border); }
+  .stat .num { font-size: 24px; font-weight: 800; line-height: 1; }
+  .stat .lbl { font-size: 10px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+  .stat.total .num { color: var(--text); }
+  .stat.ok .num { color: var(--green); }
+  .stat.ng .num { color: var(--red); }
+
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+  .badge-ok { background: var(--green-pale); color: var(--green); }
+  .badge-ng { background: var(--red-pale); color: var(--red); }
+
+  /* Member list */
+  .member-list { display: flex; flex-direction: column; gap: 5px; }
+  .member-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+    background: var(--bg); border-radius: 10px; border: 1.5px solid var(--border);
+    transition: all 0.12s; cursor: pointer; user-select: none;
+  }
+  .member-item:active { transform: scale(0.98); }
+  .member-item.present { background: var(--green-pale); border-color: #8fcfaa; }
+  .member-item.absent  { background: var(--red-pale);   border-color: #e8a8a0; }
+  .member-num  { font-size: 11px; color: var(--muted); font-weight: 600; width: 22px; text-align: right; flex-shrink: 0; }
+  .member-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .note-tag { font-size: 10px; background: var(--amber-pale); color: #8a5a00; border-radius: 4px; padding: 1px 5px; display: inline-block; margin-top: 2px; }
+  .status-icon { font-size: 19px; flex-shrink: 0; }
+
+  /* Filters */
+  .filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { padding: 4px 11px; border-radius: 20px; border: 1.5px solid var(--border); font-size: 11px; font-weight: 600; cursor: pointer; background: var(--card); color: var(--muted); transition: all 0.12s; }
+  .chip.active { background: var(--green); color: white; border-color: var(--green); }
+
+  .info-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .info-row > * { flex: 1; }
+
+  .empty { text-align: center; padding: 36px 20px; color: var(--muted); }
+  .empty .empty-icon { font-size: 36px; margin-bottom: 8px; }
+  .empty p { font-size: 13px; }
+
+  .confirm-box { background: var(--red-pale); border: 1px solid #e8a8a0; border-radius: 10px; padding: 12px; margin-top: 10px; display: none; }
+  .confirm-box p { font-size: 13px; color: var(--red); margin-bottom: 10px; font-weight: 600; }
+
+  .scroll-area { max-height: 58vh; overflow-y: auto; padding-right: 2px; }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 7px; }
+  .hint span { color: var(--green); font-weight: 600; }
+
+  /* Add-stop modal */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 16px; padding: 22px 20px;
+    width: calc(100% - 40px); max-width: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .modal h3 { font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 14px; }
+  .modal-row { margin-bottom: 12px; }
+  .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .icon-opt {
+    font-size: 22px; padding: 4px 6px; border-radius: 8px;
+    cursor: pointer; border: 2px solid transparent; transition: border-color 0.12s;
+  }
+  .icon-opt.selected { border-color: var(--green); background: var(--green-pale); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>🏉</span>遠征点呼アプリ</h1>
+  <p id="trip-label">遠征日時・行き先を設定してください</p>
+</header>
+
+<div class="tab-bar-wrap">
+  <div class="tab-bar" id="tab-bar">
+    </div>
+</div>
+
+<div id="pages-container">
+  <div id="page-setup" class="page">
+    <div class="card">
+      <h2>🗓 遠征情報</h2>
+      <div class="info-row">
+        <div><label>遠征日</label><input type="date" id="trip-date"></div>
+        <div><label>行き先</label><input type="text" id="trip-dest" placeholder="例：花園ラグビー場"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveInfo()">💾 保存</button></div>
+    </div>
+
+    <div class="card">
+      <h2>👥 名簿入力</h2>
+      <label>1行に1名、「番号 氏名」または「氏名」だけでもOK</label>
+      <textarea id="roster-input" placeholder="例：&#10;1 田中太郎&#10;2 鈴木次郎&#10;3 山本三郎"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="loadRoster()">📥 名簿を読み込む</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadSample()">サンプル表示</button>
+      </div>
+      <p class="hint" id="roster-hint"></p>
+    </div>
+
+    <div class="card">
+      <h2>➕ 1名追加</h2>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div style="flex:0 0 55px"><label>番号</label><input type="text" id="add-num" style="text-align:center;"></div>
+        <div style="flex:1"><label>氏名</label><input type="text" id="add-name" placeholder="氏名を入力"></div>
+        <div style="flex:0 0 72px"><label>備考</label><input type="text" id="add-note" placeholder="引率など"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="addOneMember()">追加</button></div>
+    </div>
+
+    <div class="card">
+      <h2>🗑 データリセット</h2>
+      <p style="font-size:12px;color:var(--muted);">点呼データと追加タブをすべてリセットします。</p>
+      <div class="btn-row"><button class="btn btn-danger btn-sm" onclick="toggleConfirm()">⚠️ リセット</button></div>
+      <div class="confirm-box" id="confirm-box">
+        <p>本当に全データをリセットしますか？</p>
+        <div class="btn-row">
+          <button class="btn btn-danger btn-sm" onclick="resetAll()">はい、リセット</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleConfirm()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <h3>➕ 点呼タブを追加</h3>
+    <div class="modal-row">
+      <label>タブ名（例：トイレ休憩①、昼食会場）</label>
+      <input type="text" id="modal-name" placeholder="タブ名を入力" maxlength="12">
+    </div>
+    <div class="modal-row">
+      <label>アイコン</label>
+      <div class="icon-picker" id="icon-picker">
+        🚻 🍱 🅿️ ⛽ 🎯 🏟 🚌 📍 ⏸ 🔔
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:flex-end;">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary btn-sm" onclick="addStop()">追加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======= STATE =======
+let members = [];
+let tripInfo = { date: '', dest: '' };
+let stops = [];
+let currentPage = 'setup';
+
+// ======= PERSIST =======
+function save() {
+  localStorage.setItem('rc_members', JSON.stringify(members));
+  localStorage.setItem('rc_trip', JSON.stringify(tripInfo));
+  localStorage.setItem('rc_stops', JSON.stringify(stops));
+}
+function load() {
+  try { members  = JSON.parse(localStorage.getItem('rc_members'))  || []; } catch(e) { members=[]; }
+  try { tripInfo = JSON.parse(localStorage.getItem('rc_trip'))     || {}; } catch(e) { tripInfo={}; }
+  try { stops    = JSON.parse(localStorage.getItem('rc_stops'))    || defaultStops(); } catch(e) { stops=defaultStops(); }
+  if (!stops.length) stops = defaultStops();
+}
+function defaultStops() {
+  return [
+    { id: 'morning',    name: '行き点呼',  icon: '🌅', filter: 'all' },
+    { id: 'returnTrip', name: '帰り点呼',  icon: '🌆', filter: 'all' },
+    { id: 'summary',    name: '集計',      icon: '📋', filter: 'all', isSummary: true },
+  ];
+}
+
+// ======= INIT =======
+load();
+buildIconPicker();
+updateTripLabel();
+renderTabs();
+showPage('setup');
+if (tripInfo.date) document.getElementById('trip-date').value = tripInfo.date;
+if (tripInfo.dest) document.getElementById('trip-dest').value = tripInfo.dest;
+
+// ======= TRIP INFO =======
+function saveInfo() {
+  tripInfo.date = document.getElementById('trip-date').value;
+  tripInfo.dest = document.getElementById('trip-dest').value;
+  save(); updateTripLabel();
+  alert('✅ 遠征情報を保存しました');
+}
+function updateTripLabel() {
+  const el = document.getElementById('trip-label');
+  if (tripInfo.date || tripInfo.dest) {
+    const d = tripInfo.date ? new Date(tripInfo.date).toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'}) : '';
+    el.textContent = [d, tripInfo.dest].filter(Boolean).join(' ／ ');
+  } else {
+    el.textContent = '遠征日時・行き先を設定してください';
+  }
+}
+
+// ======= TABS =======
+function renderTabs() {
+  const bar = document.getElementById('tab-bar');
+  let html = `<button class="tab ${currentPage==='setup'?'active':''}" onclick="showPage('setup')"><span class="tab-icon">⚙️</span>設定</button>`;
+  stops.forEach(s => {
+    const del = (!s.isSummary && s.id !== 'morning' && s.id !== 'returnTrip')
+      ? `<span class="tab-del" onclick="deleteStop(event,'${s.id}')">×</span>` : '';
+    html += `<button class="tab ${currentPage===s.id?'active':''}" onclick="showPage('${s.id}')"><span class="tab-icon">${s.icon}</span>${s.name}${del}</button>`;
+  });
+  html += `<button class="tab-add" onclick="openModal()" title="タブを追加">＋</button>`;
+  bar.innerHTML = html;
+}
+
+function showPage(id) {
+  currentPage = id;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page-' + id);
+  if (el) {
+    el.classList.add('active');
+    if (id !== 'setup') renderStopPage(id);
+  }
+  renderTabs();
+  setTimeout(() => {
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab) activeTab.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
+  }, 50);
+}
+
+// ======= DYNAMIC PAGES =======
+function ensurePage(stopId) {
+  if (!document.getElementById('page-' + stopId)) {
+    const div = document.createElement('div');
+    div.id = 'page-' + stopId;
+    div.className = 'page';
+    document.getElementById('pages-container').appendChild(div);
+  }
+}
+
+function renderStopPage(stopId) {
+  const stop = stops.find(s => s.id === stopId);
+  if (!stop) return;
+  ensurePage(stopId);
+  const el = document.getElementById('page-' + stopId);
+
+  if (stop.isSummary) {
+    el.innerHTML = buildSummaryHtml();
+    return;
+  }
+
+  const filter = stop.filter || 'all';
+  const total   = members.length;
+  const present = members.filter(m => (m.checks||{})[stopId] === 'present').length;
+  const absent  = members.filter(m => (m.checks||{})[stopId] === 'absent').length;
+
+  const filtered = members
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => {
+      const s = (m.checks||{})[stopId] || 'none';
+      if (filter === 'all')       return true;
+      if (filter === 'unchecked') return s === 'none';
+      if (filter === 'present')   return s === 'present';
+      if (filter === 'absent')    return s === 'absent';
+      return true;
+    });
+
+  const listHtml = !members.length
+    ? `<div class="empty"><div class="empty-icon">📋</div><p>設定タブで名簿を読み込んでください</p></div>`
+    : !filtered.length
+      ? `<div class="empty"><div class="empty-icon">🔍</div><p>該当者なし</p></div>`
+      : filtered.map(({ m, i }) => {
+          const s = (m.checks||{})[stopId] || 'none';
+          return `<div class="member-item ${statusClass(s)}" onclick="cycleStatus('${stopId}',${i})">
+            <div class="member-num">${m.num || i+1}</div>
+            <div>
+              <div class="member-name">${m.name}</div>
+              ${m.note ? `<div class="note-tag">${m.note}</div>` : ''}
+            </div>
+            <div class="status-icon">${statusIcon(s)}</div>
+          </div>`;
+        }).join('');
+
+  el.innerHTML = `
+    <div class="stats">${statsHtml(total, present, absent)}</div>
+    <div class="filters" id="filters-${stopId}">
+      <div class="chip ${filter==='all'?'active':''}"       onclick="setFilter('${stopId}','all',this)">全員</div>
+      <div class="chip ${filter==='unchecked'?'active':''}" onclick="setFilter('${stopId}','unchecked',this)">未確認</div>
+      <div class="chip ${filter==='present'?'active':''}"   onclick="setFilter('${stopId}','present',this)">✅ 確認</div>
+      <div class="chip ${filter==='absent'?'active':''}"    onclick="setFilter('${stopId}','absent',this)">❌ 欠席</div>
+    </div>
+    <div class="scroll-area"><div class="member-list">${listHtml}</div></div>
+    <p class="hint">タップで <span>🔲 未確認 → ✅ 確認 → ❌ 欠席</span> と切り替わります</p>
+  `;
+}
+
+// ======= STATUS =======
+function cycleStatus(stopId, idx) {
+  if (!members[idx].checks) members[idx].checks = {};
+  const cur = members[idx].checks[stopId] || 'none';
+  members[idx].checks[stopId] = cur === 'none' ? 'present' : cur === 'present' ? 'absent' : 'none';
+  save();
+  renderStopPage(stopId);
+  if (currentPage === 'summary') renderStopPage('summary');
+}
+
+function statusIcon(s) { return s==='present'?'✅':s==='absent'?'❌':'🔲'; }
+function statusClass(s) { return s==='present'?'present':s==='absent'?'absent':''; }
+
+function statsHtml(total, present, absent) {
+  const unc = total - present - absent;
+  return `
+    <div class="stat total"><div class="num">${total}</div><div class="lbl">登録人数</div></div>
+    <div class="stat ok"><div class="num">${present}</div><div class="lbl">✅ 確認済み</div></div>
+    <div class="stat ng"><div class="num">${unc>0?unc:absent}</div><div class="lbl">${unc>0?'🔲 未確認':'❌ 欠席'}</div></div>`;
+}
+
+// ======= FILTER =======
+function setFilter(stopId, val, el) {
+  const stop = stops.find(s => s.id === stopId);
+  if (stop) stop.filter = val;
+  renderStopPage(stopId);
+}
+
+// ======= SUMMARY =======
+function buildSummaryHtml() {
+  if (!members.length)
+    return `<div class="empty"><div class="empty-icon">📋</div><p>設定タブで名簿を読み込んでください</p></div>`;
+
+  const rollStops = stops.filter(s => !s.isSummary);
+  let html = '';
+  rollStops.forEach(s => {
+    const present = members.filter(m => (m.checks||{})[s.id]==='present').length;
+    const absent  = members.filter(m => (m.checks||{})[s.id]==='absent').length;
+    const none    = members.length - present - absent;
+    const unc     = members.filter(m => ((m.checks||{})[s.id]||'none')==='none');
+    const abs     = members.filter(m => (m.checks||{})[s.id]==='absent');
+    html += `<div class="card">
+      <h2>${s.icon} ${s.name}</h2>
+      <div class="stats">${statsHtml(members.length, present, absent)}</div>
+      ${none>0 ? `<div class="badge badge-ng" style="margin-bottom:8px">未確認 ${none}名</div>` : '<div class="badge badge-ok" style="margin-bottom:8px">✅ 全員確認済み</div>'}
+      ${unc.length ? '<div class="member-list" style="margin-top:6px">'+unc.map(m=>`<div class="member-item"><div class="member-num">${m.num}</div><div class="member-name">${m.name}</div><div class="status-icon">🔲</div></div>`).join('')+'</div>' : ''}
+      ${abs.length ? '<div class="member-list" style="margin-top:6px">'+abs.map(m=>`<div class="member-item absent"><div class="member-num">${m.num}</div><div class="member-name">${m.name}</div><div class="status-icon">❌</div></div>`).join('')+'</div>' : ''}
+    </div>`;
+  });
+  return html;
+}
+
+// ======= ROSTER =======
+function loadRoster() {
+  const text = document.getElementById('roster-input').value.trim();
+  if (!text) { alert('名簿を入力してください'); return; }
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const newMembers = [];
+  lines.forEach(line => {
+    const parts = line.split(/[\s\t,、 ]+/);
+    let num='', name='', note='';
+    if (parts.length>=2 && /^\d+$/.test(parts[0])) { num=parts[0]; name=parts[1]; note=parts.slice(2).join(' '); }
+    else { name=parts[0]; note=parts.slice(1).join(' '); }
+    if (name) newMembers.push({ num, name, note, checks:{} });
+  });
+  if (!newMembers.length) { alert('読み取れる名前がありませんでした'); return; }
+  if (members.length>0 && !confirm(`既存の名簿（${members.length}名）を上書きしますか？`)) return;
+  members = newMembers; save(); renderAllStops();
+  document.getElementById('roster-hint').textContent = `✅ ${members.length}名を読み込みました`;
+}
+
+function addOneMember() {
+  const num  = document.getElementById('add-num').value.trim();
+  const name = document.getElementById('add-name').value.trim();
+  const note = document.getElementById('add-note').value.trim();
+  if (!name) { alert('氏名を入力してください'); return; }
+  members.push({ num, name, note, checks:{} });
+  save(); renderAllStops();
+  document.getElementById('add-num').value = '';
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-note').value = '';
+}
+
+function loadSample() {
+  document.getElementById('roster-input').value =
+`1 田中太郎\n2 鈴木次郎\n3 山本三郎\n4 高橋花子\n5 渡辺健太\n6 伊藤陽介\n7 加藤大輝\n8 小林拓也\n9 中村蒼太\n10 佐藤リョウ\n11 松本コーチ 引率\n12 岩崎マネージャー 引率`;
+}
+
+function renderAllStops() {
+  stops.forEach(s => {
+    if (document.getElementById('page-'+s.id) && document.getElementById('page-'+s.id).classList.contains('active')) {
+      renderStopPage(s.id);
+    }
+  });
+}
+
+// ======= ADD STOP MODAL =======
+let selectedIcon = '🚻';
+function buildIconPicker() {
+  const icons = ['🚻','🍱','🅿️','⛽','🎯','🏟','🚌','📍','⏸','🔔','🏖','🎪','🏨','🚉','⛺'];
+  const picker = document.getElementById('icon-picker');
+  picker.innerHTML = icons.map(ic =>
+    `<span class="icon-opt ${ic===selectedIcon?'selected':''}" onclick="selectIcon(this,'${ic}')">${ic}</span>`
+  ).join('');
+}
+function selectIcon(el, icon) {
+  selectedIcon = icon;
+  document.querySelectorAll('.icon-opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function openModal() {
+  document.getElementById('modal-name').value = '';
+  selectedIcon = '🚻';
+  buildIconPicker();
+  document.getElementById('modal-backdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-name').focus(), 100);
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-backdrop')) return;
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+function addStop() {
+  const name = document.getElementById('modal-name').value.trim();
+  if (!name) { alert('タブ名を入力してください'); return; }
+  const id = 'stop_' + Date.now();
+  const sumIdx = stops.findIndex(s=>s.isSummary);
+  const newStop = { id, name, icon: selectedIcon, filter: 'all' };
+  if (sumIdx >= 0) stops.splice(sumIdx, 0, newStop);
+  else stops.push(newStop);
+  save();
+  document.getElementById('modal-backdrop').classList.remove('open');
+  renderTabs();
+  showPage(id);
+}
+function deleteStop(e, stopId) {
+  e.stopPropagation();
+  const stop = stops.find(s=>s.id===stopId);
+  if (!stop) return;
+  if (!confirm(`「${stop.name}」タブを削除しますか？\n点呼データも削除されます。`)) return;
+  stops = stops.filter(s=>s.id!==stopId);
+  members.forEach(m => { if(m.checks) delete m.checks[stopId]; });
+  save(); renderTabs();
+  if (currentPage === stopId) showPage('setup');
+}
+
+// ======= RESET =======
+function toggleConfirm() {
+  const b = document.getElementById('confirm-box');
+  b.style.display = b.style.display==='block'?'none':'block';
+}
+function resetAll() {
+  members=[]; tripInfo={}; stops=defaultStops(); save();
+  document.getElementById('trip-date').value='';
+  document.getElementById('trip-dest').value='';
+  document.getElementById('roster-hint').textContent='';
+  updateTripLabel(); toggleConfirm();
+  document.querySelectorAll('.page:not(#page-setup)').forEach(el=>el.remove());
+  renderTabs(); showPage('setup');
+  alert('✅ リセットしました');
+}
+</script>
+</body>
+</html>
