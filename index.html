@@ -322,6 +322,8 @@ function showPage(id) {
   currentPage = id;
   // hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // ensure dynamic page element exists before trying to show it
+  if (id !== 'setup') ensurePage(id);
   const el = document.getElementById('page-' + id);
   if (el) {
     el.classList.add('active');
