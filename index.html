@@ -179,12 +179,16 @@
   <p id="trip-label">遠征日時・行き先を設定してください</p>
 </header>
 
+<!-- TAB BAR -->
 <div class="tab-bar-wrap">
   <div class="tab-bar" id="tab-bar">
-    </div>
+    <!-- rendered by JS -->
+  </div>
 </div>
 
+<!-- PAGES CONTAINER -->
 <div id="pages-container">
+  <!-- setup page is static -->
   <div id="page-setup" class="page">
     <div class="card">
       <h2>🗓 遠征情報</h2>
@@ -229,8 +233,10 @@
       </div>
     </div>
   </div>
-  </div>
+  <!-- dynamic pages injected here by JS -->
+</div>
 
+<!-- ADD STOP MODAL -->
 <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
   <div class="modal">
     <h3>➕ 点呼タブを追加</h3>
@@ -255,6 +261,7 @@
 // ======= STATE =======
 let members = [];
 let tripInfo = { date: '', dest: '' };
+// stops: [ { id, name, icon, filter } ]  — 'morning' and 'returnTrip' are built-in
 let stops = [];
 let currentPage = 'setup';
 
@@ -278,15 +285,6 @@ function defaultStops() {
   ];
 }
 
-// ======= INIT =======
-load();
-buildIconPicker();
-updateTripLabel();
-renderTabs();
-showPage('setup');
-if (tripInfo.date) document.getElementById('trip-date').value = tripInfo.date;
-if (tripInfo.dest) document.getElementById('trip-dest').value = tripInfo.dest;
-
 // ======= TRIP INFO =======
 function saveInfo() {
   tripInfo.date = document.getElementById('trip-date').value;
@@ -307,18 +305,22 @@ function updateTripLabel() {
 // ======= TABS =======
 function renderTabs() {
   const bar = document.getElementById('tab-bar');
+  // setup tab
   let html = `<button class="tab ${currentPage==='setup'?'active':''}" onclick="showPage('setup')"><span class="tab-icon">⚙️</span>設定</button>`;
+  // dynamic stops
   stops.forEach(s => {
     const del = (!s.isSummary && s.id !== 'morning' && s.id !== 'returnTrip')
       ? `<span class="tab-del" onclick="deleteStop(event,'${s.id}')">×</span>` : '';
     html += `<button class="tab ${currentPage===s.id?'active':''}" onclick="showPage('${s.id}')"><span class="tab-icon">${s.icon}</span>${s.name}${del}</button>`;
   });
+  // add button
   html += `<button class="tab-add" onclick="openModal()" title="タブを追加">＋</button>`;
   bar.innerHTML = html;
 }
 
 function showPage(id) {
   currentPage = id;
+  // hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const el = document.getElementById('page-' + id);
   if (el) {
@@ -326,6 +328,7 @@ function showPage(id) {
     if (id !== 'setup') renderStopPage(id);
   }
   renderTabs();
+  // scroll active tab into view
   setTimeout(() => {
     const activeTab = document.querySelector('.tab.active');
     if (activeTab) activeTab.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
@@ -353,6 +356,7 @@ function renderStopPage(stopId) {
     return;
   }
 
+  // roll call page
   const filter = stop.filter || 'all';
   const total   = members.length;
   const present = members.filter(m => (m.checks||{})[stopId] === 'present').length;
@@ -405,6 +409,7 @@ function cycleStatus(stopId, idx) {
   members[idx].checks[stopId] = cur === 'none' ? 'present' : cur === 'present' ? 'absent' : 'none';
   save();
   renderStopPage(stopId);
+  // refresh summary if open
   if (currentPage === 'summary') renderStopPage('summary');
 }
 
@@ -457,7 +462,7 @@ function loadRoster() {
   const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
   const newMembers = [];
   lines.forEach(line => {
-    const parts = line.split(/[\s\t,、 ]+/);
+    const parts = line.split(/[\s\t,、　]+/);
     let num='', name='', note='';
     if (parts.length>=2 && /^\d+$/.test(parts[0])) { num=parts[0]; name=parts[1]; note=parts.slice(2).join(' '); }
     else { name=parts[0]; note=parts.slice(1).join(' '); }
@@ -523,6 +528,7 @@ function addStop() {
   const name = document.getElementById('modal-name').value.trim();
   if (!name) { alert('タブ名を入力してください'); return; }
   const id = 'stop_' + Date.now();
+  // insert before summary
   const sumIdx = stops.findIndex(s=>s.isSummary);
   const newStop = { id, name, icon: selectedIcon, filter: 'all' };
   if (sumIdx >= 0) stops.splice(sumIdx, 0, newStop);
@@ -538,10 +544,20 @@ function deleteStop(e, stopId) {
   if (!stop) return;
   if (!confirm(`「${stop.name}」タブを削除しますか？\n点呼データも削除されます。`)) return;
   stops = stops.filter(s=>s.id!==stopId);
+  // remove checks for this stop from all members
   members.forEach(m => { if(m.checks) delete m.checks[stopId]; });
   save(); renderTabs();
   if (currentPage === stopId) showPage('setup');
 }
+
+// ======= INIT (after all functions declared) =======
+load();
+buildIconPicker();
+updateTripLabel();
+renderTabs();
+showPage('setup');
+if (tripInfo.date) document.getElementById('trip-date').value = tripInfo.date;
+if (tripInfo.dest) document.getElementById('trip-dest').value = tripInfo.dest;
 
 // ======= RESET =======
 function toggleConfirm() {
@@ -554,6 +570,7 @@ function resetAll() {
   document.getElementById('trip-dest').value='';
   document.getElementById('roster-hint').textContent='';
   updateTripLabel(); toggleConfirm();
+  // remove dynamic page elements
   document.querySelectorAll('.page:not(#page-setup)').forEach(el=>el.remove());
   renderTabs(); showPage('setup');
   alert('✅ リセットしました');
